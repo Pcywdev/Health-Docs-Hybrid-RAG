@@ -1,13 +1,13 @@
 # Roadmap
 
 Where the project stands. Update after each milestone (see CLAUDE.md, Documentation).
-Last updated: 2026-11-16 · branch `fix/citation-ranges` · Alembic head `a9d742709640`
+Last updated: 2026-11-16 · branch `fix/prompt-superseded-guidance` · Alembic head `a9d742709640`
 
 Legend: [x] finished · [~] in progress · [ ] not started
 
 ## Now / Next up
-- **Now:** [~] Step 11, fix the eval findings. Fix 1 of 3: citation ranges (`fix/citation-ranges`)
-- **Next up:** fix 2, q027 outdated guidance (prompt v1.1); fix 3, cross-document retrieval (source diversity)
+- **Now:** [~] Step 11, fix the eval findings. Fix 2 of 3: prompt v1.2 for superseded guidance (`fix/prompt-superseded-guidance`), eval run 8 passed; awaiting PR
+- **Next up:** fix 3, cross-document retrieval (source diversity)
 - **Then:** Celery + Redis, Streamlit frontend
 
 ## Done
@@ -28,12 +28,11 @@ Legend: [x] finished · [~] in progress · [ ] not started
 - [x] Step 10, Docker + CI: GitHub Actions (ruff, migration round trip on Postgres 17, pytest, `docker build`), non-root `Dockerfile`, `docker-compose.yml` (API + own Postgres on 127.0.0.1:5433) · PR #9
 
 ## Remaining (in order)
-- [~] **Step 11, eval fixes** — (1) citation ranges, (2) q027 prompt v1.1, (3) source diversity in retrieval; each with a before/after eval
+- [~] **Step 11, eval fixes** — (1) citation ranges · PR #10, (2) prompt v1.2 for superseded guidance (q027), (3) source diversity in retrieval; each with a before/after eval
 - [ ] **Later** — Celery + Redis, Streamlit frontend
 
 ## Open issues
 - Comparison questions that need both documents can retrieve only one (q035 false refusal, q033 faithfulness 0.50): nothing in retrieval guarantees both sources are represented.
-- q027 answers with the outdated 2008 rule (10-minute bouts) before the current one; faithfulness 0.75.
 - `answer_relevancy` scores correct, concise answers as low as 0.56, so it is measured but not gated (`null`).
 - CI cannot run the eval (PDFs and Chroma are not in git; needs paid keys). Run it locally and paste scores in the PR.
 - `/history` and `/ingest` have no authentication.
