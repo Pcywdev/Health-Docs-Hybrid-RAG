@@ -37,7 +37,6 @@ Legend: [x] finished · [~] in progress · [ ] not started
 - `answer_relevancy` scores correct, concise answers as low as 0.56, so it is measured but not gated (`null`).
 - CI cannot run the eval (PDFs and Chroma are not in git; needs paid keys). Run it locally and paste scores in the PR.
 - `/history` and `/ingest` have no authentication.
-- `CITATION_PATTERN` mishandles ranges: `[Source 1-3]` parses as {1, 3}.
 - BM25 cache is keyed on chunk count; `load_prompt()` is cached: restart after re-ingesting or editing the prompt.
 - `temperature=0` is not deterministic, but only the RAGAS judge scores varied across baseline runs (±0.01); retrieval and citation metrics were identical.
 
