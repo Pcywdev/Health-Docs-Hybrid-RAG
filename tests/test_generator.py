@@ -76,11 +76,19 @@ def test_build_context_numbers_chunks_from_one() -> None:
     assert context.startswith("[Source 1] doc.pdf, p.1\ntext 1")
     assert "\n\n[Source 2] doc.pdf, p.2\ntext 2" in context
 
-
-@pytest.mark.xfail(
-    strict=True,
-    reason="Known bug (ROADMAP open issues): '[Source 1-3]' parses as {1, 3}, not {1, 2, 3}",
-)
 def test_source_range_expands() -> None:
     report = validate_citation("Claim [Source 1-3].", chunks(3))
     assert report["total_citations"] == 3
+
+def test_reversed_range_expands() -> None:
+    report = validate_citation("Claim [Source 3-1].", chunks(3))
+    assert report["total_citations"] == 3
+    
+def test_huge_range_is_capped() -> None:
+    report = validate_citation("Claim [Source 1-100000].", chunks(3))
+    assert report["total_citations"] == 50
+    assert report["fabricated_citations"] == 47
+    
+def test_en_dash_range_expands() -> None:
+    assert validate_citation("Claim [Source 1–3].", chunks(3))["total_citations"] == 3
+
