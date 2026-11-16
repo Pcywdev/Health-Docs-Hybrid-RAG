@@ -1,7 +1,7 @@
 # Record notes
 
 Personal study notes: what each finished stage does and the concepts behind it.
-Status lives in `ROADMAP.md`, design in `architecture.md`. Last updated: 2026-11-08
+Status lives in `ROADMAP.md`, design in `architecture.md`. Last updated: 2026-11-16
 
 **RAG** = retrieve relevant text from your own documents first, then make the LLM answer only from it. Less hallucination, verifiable answers.
 
@@ -25,7 +25,7 @@ Cheap wide net first (recall), expensive precise step last (precision).
 - Chunks are labelled `[Source N]` in the prompt; `gpt-4o-mini` at temperature 0 (low variance, not deterministic: average eval runs).
 - Prompt lives in versioned YAML, never in Python.
 - `validate_citation`: N must be in range, else the citation is fabricated. It does **not** check that the source supports the claim.
-- Gotchas: `[Source 1-3]` parses as {1, 3}; `citation_accuracy` is 0.0 for refusals, so filter on `has_citations`.
+- Gotchas: `citation_accuracy` is 0.0 for refusals, so filter on `has_citations`.
 
 ## 4. Query logging and `/history`
 - `query_logs` stores answer, citation counts and a retrieval trace (ids, rerank scores, prompt/model versions, latency): lets you explain a bad answer later.
@@ -52,7 +52,7 @@ Goal: prove our logic is right in seconds, with no network, no cost, no real dat
 - **Monkeypatch:** swaps a function for a fake for one test, then restores it. Used to fake `vector_search`, `bm25_search` and `cohere_client.rerank`, so `retrieve()` runs end to end offline.
 - **Testing the fallback:** the fake Cohere raises `ApiError`; the test asserts RRF order comes back, no `rerank_score`, and a warning is logged.
 - **SQLite instead of Postgres:** `JsonType` lets the same models run on SQLite. `StaticPool` is needed: an in-memory SQLite database exists per connection, so without it each connection sees empty tables. Limit: SQLite `avg()` returns float, so the Postgres `Decimal` gotcha and JSONB are not covered offline.
-- **`xfail(strict=True)`:** documents a known bug as a test. Suite stays green while the bug exists, then fails loudly when someone fixes it, telling you to delete the marker. Used for `[Source 1-3]` parsing as {1, 3}.
+- **`xfail(strict=True)`:** documents a known bug as a test. Suite stays green while the bug exists, then fails loudly when someone fixes it, telling you to delete the marker. Used for `[Source 1-3]` parsing as {1, 3} until PR #10 fixed it.
 - **Mutation check:** break the code on purpose (RRF `1/(k+rank)` → `1/rank`) and confirm tests fail. Proves the tests can actually catch a regression.
 - Invariants now pinned: Cohere failure degrades to RRF order; a logging failure never fails `/query`; refusals score 0.0 and drag down only the all-rows mean.
 - Gotcha: the report key is `has_citation`, the DB column is `has_citations`.
@@ -81,5 +81,27 @@ Goal: the same checks run on every PR without anyone remembering to, and the who
 - **Bind mount vs named volume:** a bind mount shares a host folder (`./chroma_db`, so no paid re-ingest); a named volume (`pgdata`) is Docker-managed storage that survives restarts.
 - **Port gotcha:** the native Postgres owns 5432, so the container is published on 5433. Ports bind to 127.0.0.1 because `/history` and `/ingest` have no auth.
 
+## 10. Eval fixes (Step 11)
+Each fix follows the same loop: find the failure in the eval, diagnose the cause, change one thing, re-run, and compare question by question against the baseline (run 6).
+
+**Fix 1: citation ranges** · PR #10
+- **Bug:** `\d+` pulled out each run of digits, so `[Source 1-3]` became {1, 3}.
+- **Optional capture group:** `(\d+)(?:\s*[-–]\s*(\d+))?` matches `3` and `1-3` with one pattern. Group 2 is `None` when there's no range. `(?:...)` groups without capturing, and `[-–]` accepts a hyphen or an en dash, since LLMs use both.
+- **Guards:** a reversed range `3-1` is swapped, and one range expands to at most 50 numbers (`MAX_RANGE`). Numbers past the last chunk still count as fabricated.
+- **One parser, two callers:** `validate_citation` and `extract_cited_sources` share `_cited_numbers`, so the report and the returned sources can't disagree.
+- The `xfail(strict=True)` test turned into a failure once the fix worked, which was the cue to delete the marker (see section 7).
+
+**Fix 2: superseded guidance (q027)** · prompt v1.0 → v1.2
+- **Symptom:** asked how long a bout must last, the model opened with the 2008 rule (10-minute bouts) and only then gave the current one (any length counts). Faithfulness 0.75.
+- **Diagnosis with `find_pages.py`:** the old and new rules both live in the US document (p.6, p.23, p.110), often in the same chunk. Retrieval can't drop the old rule without losing the new one, so it's a **generation** problem and the fix goes in the prompt.
+- **Prompt versioning:** a prompt edit is a behaviour change, so it gets a version bump (stored on every eval run) and a full eval. Never reuse a version number for different text, or two different prompts look identical in `eval_runs`.
+- **v1.1 was too broad:** "mention the earlier one only as superseded history" read like a section to always include. The model added an invented "Superseded history" line to q036 (faithfulness 1.0 → 0.5) and copied the phrase as a heading.
+- **v1.2:** the rule is conditional ("only if a source explicitly says it changed") and spells out the default ("otherwise, do not mention earlier recommendations"). It also says one guideline document doesn't replace another (WHO 2020 is not an update of US 2018).
+- **Result (run 8):** q027 1.00, q036 back to 1.00, faithfulness 0.968 vs 0.957, every gate passes.
+- **Lessons:**
+  - Any prompt edit reshuffles every answer, so diff each question, not just the averages.
+  - A small dip (q008 1.0 → 0.71) can be the judge reacting to new wording. Check the cited numbers against the source before calling it a hallucination.
+  - LLMs copy phrases from instructions into their output, so avoid wording that sounds like a heading.
+
 ## Still to come
-Fix the eval findings (cross-document retrieval, q027) → Celery/Redis, Streamlit.
+Fix 3: cross-document retrieval (source diversity) → Celery/Redis, Streamlit.
