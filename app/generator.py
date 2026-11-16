@@ -11,6 +11,9 @@ from app.ingest import openai_client
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 CITATION_PATTERN = re.compile(r"\[Source[^\]]*\]")
+# Most numbers one range citation can expand to, so a fabricated
+# "[Source 1-100000]" cannot flood the set.
+MAX_RANGE = 50
 
 
 @cache
@@ -36,16 +39,30 @@ def build_context(chunks: list[dict[str, Any]]) -> str:
 def _cited_numbers(answer: str) -> set[int]:
     """Return the distinct source numbers the answer cites.
 
-    Shared by ``extract_cited_sources`` and ``validate_citation`` so both parse
-    citations identically.
+    Ranges are expanded: ``[Source 1-3]`` (hyphen or en dash) gives {1, 2, 3}.
+    A reversed range such as ``3-1`` is read as ``1-3``, and one range expands
+    to at most ``MAX_RANGE`` numbers. Shared by ``extract_cited_sources`` and
+    ``validate_citation`` so both parse citations identically.
     """
     cited: set[int] = set()
-    # findall on the answer returns every full citation as a string -> ["[Source 1, 3]", "[Source 2]", "[Source 9]"]
+    # findall returns every full citation as a string, e.g.
+    # ["[Source 1, 3]", "[Source 2-4]", "[Source 9]"]
     for citation in CITATION_PATTERN.findall(answer):
-        # For each one, a second regex, \d+ pulls out every run of digits
-        # "[Source 1, 3]" becomes ["1", "3"]
-        # A set removes duplicates, so citing Source 1 three times still yields one entry.
-        cited.update(int(number) for number in re.findall(r"\d+", citation))
+        # Each match is a number (group 1), optionally followed by a dash and
+        # an end number (group 2, None when there is no range).
+        # "[Source 1, 3]" -> two matches (1, None), (3, None)
+        # "[Source 2-4]"  -> one match (2, 4)
+        for m in re.finditer(r"(\d+)(?:\s*[-–]\s*(\d+))?", citation):
+            start = int(m.group(1))
+            if m.group(2) is None:
+                cited.add(start)
+            else:
+                end = int(m.group(2))
+                if start > end:  # "3-1" -> "1-3"
+                    start, end = end, start
+                # Inclusive range, capped at MAX_RANGE numbers.
+                cited.update(range(start, min(end, start + MAX_RANGE - 1) + 1))
+    # A set removes duplicates: citing Source 1 three times still counts once.
     return cited
 
 
@@ -53,8 +70,8 @@ def extract_cited_sources(
     answer: str, chunks: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Return the chunks the answer cites, labelled with their ``Source N`` number.
 
-    Handles ``[Source 1]``, ``[Source 1, 2]`` and ``[Source 1][Source 3]``.
-    Numbers that do not match a chunk are ignored.
+    Handles ``[Source 1]``, ``[Source 1, 2]``, ``[Source 1][Source 3]`` and
+    ranges such as ``[Source 1-3]``. Numbers that do not match a chunk are ignored.
     """
     return [
         {

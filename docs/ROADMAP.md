@@ -1,13 +1,13 @@
 # Roadmap
 
 Where the project stands. Update after each milestone (see CLAUDE.md, Documentation).
-Last updated: 2026-11-08 · branch `ci/docker-and-ci` · Alembic head `a9d742709640`
+Last updated: 2026-11-16 · branch `fix/citation-ranges` · Alembic head `a9d742709640`
 
 Legend: [x] finished · [~] in progress · [ ] not started
 
 ## Now / Next up
-- **Now:** [~] Step 10, Docker + CI (`ci/docker-and-ci`): CI steps verified locally on a scratch DB; `docker compose up` verified (`/health`, `/history`, 843 chunks mounted, no `.env` in image); awaiting commit and PR
-- **Next up:** fix the eval findings in Open issues, each with a before/after eval
+- **Now:** [~] Step 11, fix the eval findings. Fix 1 of 3: citation ranges (`fix/citation-ranges`)
+- **Next up:** fix 2, q027 outdated guidance (prompt v1.1); fix 3, cross-document retrieval (source diversity)
 - **Then:** Celery + Redis, Streamlit frontend
 
 ## Done
@@ -25,9 +25,10 @@ Legend: [x] finished · [~] in progress · [ ] not started
 - [x] Lint cleanup: `ruff check .` clean · PR #6
 - [x] Step 8, offline unit tests (RRF, citations, stats, Cohere fallback, `/query` resilience) · PR #7
 - [x] Step 9, eval: runner (custom metrics + RAGAS, threshold gate), 40-question gold set v1.3, baseline × 3, thresholds set · PR #8
+- [x] Step 10, Docker + CI: GitHub Actions (ruff, migration round trip on Postgres 17, pytest, `docker build`), non-root `Dockerfile`, `docker-compose.yml` (API + own Postgres on 127.0.0.1:5433) · PR #9
 
 ## Remaining (in order)
-- [~] **Step 10, Docker + CI** — `.github/workflows/ci.yml` (ruff, migration round trip on Postgres 17, pytest, `docker build`), `Dockerfile` (runtime deps only, non-root), `.dockerignore`, `docker-compose.yml` (API + own Postgres on 127.0.0.1:5433, index mounted) (branch `ci/docker-and-ci`)
+- [~] **Step 11, eval fixes** — (1) citation ranges, (2) q027 prompt v1.1, (3) source diversity in retrieval; each with a before/after eval
 - [ ] **Later** — Celery + Redis, Streamlit frontend
 
 ## Open issues
@@ -36,7 +37,6 @@ Legend: [x] finished · [~] in progress · [ ] not started
 - `answer_relevancy` scores correct, concise answers as low as 0.56, so it is measured but not gated (`null`).
 - CI cannot run the eval (PDFs and Chroma are not in git; needs paid keys). Run it locally and paste scores in the PR.
 - `/history` and `/ingest` have no authentication.
-- `CITATION_PATTERN` mishandles ranges: `[Source 1-3]` parses as {1, 3}.
 - BM25 cache is keyed on chunk count; `load_prompt()` is cached: restart after re-ingesting or editing the prompt.
 - `temperature=0` is not deterministic, but only the RAGAS judge scores varied across baseline runs (±0.01); retrieval and citation metrics were identical.
 
