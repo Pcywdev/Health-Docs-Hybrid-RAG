@@ -1,0 +1,6 @@
+# Streamlit UI (frontend/). A thin HTTP client of the API: it never imports app/,
+# so it needs none of the pipeline packages in requirements.txt.
+streamlit>=1.67,<2.0
+httpx>=0.28,<1.0
+pydantic-settings>=2.15,<3.0
+PyYAML>=6.0,<7.0

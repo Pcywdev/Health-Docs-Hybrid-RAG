@@ -47,6 +47,7 @@ jobs:
           cache-dependency-path: |
             requirements.txt
             requirements-dev.txt
+            requirements-frontend.txt
 
       - name: Install dependencies
         run: pip install -r requirements-dev.txt
@@ -72,5 +73,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-      - name: Build image
+      - name: Build API image
         run: docker build -t ask-my-health-docs:ci .
+      - name: Build UI image
+        run: docker build -f Dockerfile.frontend -t ask-my-health-docs-ui:ci .

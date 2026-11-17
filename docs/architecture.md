@@ -4,7 +4,7 @@ Stable design reference. Read before changing the pipeline, schema or routes.
 Status and progress live in `ROADMAP.md`. Files and functions are named, not linked.
 
 ## What it is
-A FastAPI service that answers questions about exercise science and public health guidelines from two ingested PDFs (WHO guidelines and the US Physical Activity Guidelines, 2nd ed.). Every answer cites its sources as `[Source N]`, and every answered query is logged with citation quality metrics and a retrieval trace.
+A FastAPI service that answers questions about exercise science and public health guidelines from two ingested PDFs (WHO guidelines and the US Physical Activity Guidelines, 2nd ed.). Every answer cites its sources as `[Source N]`, and every answered query is logged with citation quality metrics and a retrieval trace. A Streamlit UI ("Health Docs Hybrid RAG") sits in front of the API as a thin HTTP client.
 
 ## System overview
 | Component | Technology | Where it lives |
@@ -18,6 +18,7 @@ A FastAPI service that answers questions about exercise science and public healt
 | Database | PostgreSQL 17 + SQLAlchemy 2.0 + Alembic | `app/db.py`, `alembic/` |
 | Config | pydantic-settings, from `.env` | `app/config.py` |
 | Prompt | versioned YAML (system + template) | `prompts/rag_prompt.yaml` |
+| Frontend | Streamlit 1.67, HTTP client over `httpx` | `frontend/`, `.streamlit/config.toml` |
 
 ## Codemap
 - `app/config.py` — the one `settings` object; every other module imports it.
@@ -27,6 +28,7 @@ A FastAPI service that answers questions about exercise science and public healt
 - `app/db.py` — models `QueryLog`, `EvalRun`, `EvalResult`; `log_query`; the `/history` readers `citation_stats`, `recent_queries`, `fabricated_queries`.
 - `app/main.py` — routes `/health`, `/query`, `/ingest`, `/history`, plus the request and response models.
 - `alembic/` — `env.py` takes the database URL from settings and the models' metadata as its target; `versions/` holds migrations.
+- `frontend/` — `Home.py` (Ask page, the entry point), `pages/1_History.py` (quality dashboard), `api_client.py` (`ask`, `get_history`, `health`; every failure becomes `ApiError` with a user-facing message), `formatting.py` (citation badges, citation summary line, table rows; mirrors the backend's citation parsing), `theme.py` + `style.css` (shared header and styling), `content.yaml` (document titles, example questions), `ui_settings.py` (`API_URL`, timeout).
 - `eval/` — `eval_set.json` (questions with page-level gold labels), `dataset.py` (load + validate), `metrics.py` (hit@k, MRR, page recall, cited-gold, refusal, summary, threshold check), `run_eval.py` (CLI runner), `find_pages.py` (phrase → indexed page lookup), `thresholds.json`.
 
 ## Data flow: ingestion
@@ -43,7 +45,7 @@ flowchart LR
 ## Data flow: a query
 ```mermaid
 sequenceDiagram
-  participant U as Client
+  participant U as Client (Streamlit UI or any HTTP client)
   participant API as POST /query
   participant R as retrieve()
   participant G as generate_answer()
@@ -69,6 +71,15 @@ sequenceDiagram
 
 ## Data flow: `GET /history`
 `citation_stats` is one aggregate query (`FILTER (WHERE ...)`), plus `recent_queries` and `fabricated_queries`. Optional `?days` (1–365) and `?limit` (1–100, default 10). A database error returns 503, because there is no useful partial answer.
+
+## Frontend
+A Streamlit app in `frontend/`, run with `streamlit run frontend/Home.py` from the repo root.
+- **Thin client:** it calls `/query`, `/history` and `/health` over HTTP and never imports `app/`, so the API stays the only way in and the UI image needs no keys or pipeline packages.
+- **Rerun model:** Streamlit reruns the whole script on every interaction. The chat lives in `st.session_state.messages`; each assistant turn stores the full `/query` response, so badges and sources are redrawn from it. Example buttons queue a question through a callback, so typed and clicked questions take one path.
+- **Single-turn:** earlier turns are shown, not sent. Follow-up questions would need query rewriting, a retrieval change that has to pass the eval.
+- **Citation display:** `[Source N]` becomes numbered badges using the same parsing rules as `_cited_numbers`; numbers outside the retrieved chunks are flagged. The summary line says citations "point to a retrieved passage", because that is all `validate_citation` checks.
+- **Styling, two layers:** `.streamlit/config.toml` (colours, fonts, borders, sidebar palette) and `frontend/style.css` for what the theme can't do (question cards, chat alignment, header rule), targeting the `.st-key-NAME` classes of keyed containers. `st.html` sanitises with DOMPurify, which drops a style tag whose text contains `<`.
+- **History page:** `/history` stats as metric tiles, plus recent and fabricating queries as tables, filtered by a 7 / 30 / all-time window.
 
 ## Database
 ```mermaid
@@ -126,6 +137,7 @@ erDiagram
 - **Routes ↔ logic:** `main.py` validates, calls, and maps errors to HTTP. SQL lives in `db.py`; retrieval and generation logic in `retriever.py` and `generator.py`.
 - **Application ↔ external services:** OpenAI and Cohere are called only from `ingest.py`, `retriever.py` and `generator.py`.
 - **Application ↔ database:** only `db.py` touches SQLAlchemy sessions.
+- **UI ↔ API:** `frontend/` reaches the backend only through `api_client.py` over HTTP.
 
 ## Invariants (what must never happen)
 - `db.py` never imports from `main.py`, `retriever.py` or `generator.py`.
@@ -134,6 +146,7 @@ erDiagram
 - Prompts are never hardcoded in Python.
 - Secrets are never in git; `.env` is gitignored.
 - No `Base.metadata.create_all` against Postgres.
+- `frontend/` never imports from `app/`.
 
 ## Cross-cutting concerns
 - **Configuration:** `settings` only; models, paths and thresholds all come from `.env` or defaults.
@@ -154,17 +167,19 @@ erDiagram
 | Pin `langchain-community<0.4` | ragas imports a module removed in 0.4 |
 | Source diversity after rerank (`source_diversity`, floor `diversity_min_score=0.3`) | Comparison questions could get top-k chunks from one PDF only (q035). The best chunk of a missing document is swapped in at the end if it clears the floor, so single-document questions and the top ranks are unaffected |
 | Fail an eval run that used the RRF fallback | Cohere rate limits would otherwise silently lower scores |
+| Streamlit as a thin HTTP client | Pure Python for a first UI; going through the API keeps logging, validation and error mapping in one place |
 
 ## Running it
 | Where | How | Database |
 |---|---|---|
 | Local dev | `uvicorn app.main:app --reload` in the `askdocs` env | native Postgres 17 on 5432 |
-| Docker | `docker compose up --build`: runs `alembic upgrade head`, then uvicorn on 127.0.0.1:8000 | its own Postgres 17 on 127.0.0.1:5433, empty at first |
-| CI | `.github/workflows/ci.yml` on every PR and push to `main`: ruff, migration round trip, pytest, `docker build` | throwaway Postgres 17 service |
+| Local UI | `streamlit run frontend/Home.py` (reads `API_URL`, default `http://127.0.0.1:8000`) | via the API |
+| Docker | `docker compose up --build`: runs `alembic upgrade head`, then uvicorn on 127.0.0.1:8000, and the UI (`Dockerfile.frontend`) on 127.0.0.1:8501 with `API_URL=http://api:8000` | its own Postgres 17 on 127.0.0.1:5433, empty at first |
+| CI | `.github/workflows/ci.yml` on every PR and push to `main`: ruff, migration round trip, pytest, `docker build` of the API and UI images | throwaway Postgres 17 service |
 
 - The image holds runtime dependencies only. `chroma_db/` and `data/raw/` are bind-mounted, never copied in; `.env` is excluded by `.dockerignore` and passed at run time.
 - Ports bind to 127.0.0.1 because `/history` and `/ingest` have no authentication.
 - CI uses dummy keys and never calls OpenAI or Cohere; the eval stays a local step.
 
 ## Not built yet
-Authentication on `/history` and `/ingest`, Celery + Redis, Streamlit. See `ROADMAP.md`.
+Authentication on `/history` and `/ingest`, Celery + Redis, streaming answers, answer feedback. See `ROADMAP.md`.

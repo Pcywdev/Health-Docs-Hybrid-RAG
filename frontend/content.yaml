@@ -1,0 +1,15 @@
+# UI copy that is data, not code (same idea as prompts/).
+
+# Display titles for the source PDFs in data/raw/. A file not listed here
+# is shown by its filename instead.
+documents:
+  9789240015128-eng.pdf: WHO guidelines on physical activity and sedentary behaviour (2020)
+  Physical_Activity_Guidelines_2nd_edition.pdf: Physical Activity Guidelines for Americans, 2nd edition (2018)
+
+# Shown on an empty chat as clickable starters. Keep them answerable from the
+# documents above, so a first click shows a cited answer, not a refusal.
+examples:
+  - How much physical activity should adults do each week?
+  - What do the guidelines recommend for children and adolescents?
+  - Is physical activity safe during pregnancy?
+  - Why should older adults include balance training?

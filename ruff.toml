@@ -1,0 +1,3 @@
+# Ruff defaults, plus: frontend/ modules import each other directly (Streamlit puts
+# the script folder on sys.path), so treat that folder as first-party code too.
+src = [".", "frontend"]
