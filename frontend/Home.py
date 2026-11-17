@@ -46,7 +46,7 @@ def clear_chat() -> None:
 def show_sidebar(has_chat: bool) -> None:
     """API status, retrieval setting, and a short explanation of the pipeline."""
     with st.sidebar:
-        # Badges, not coloured dots: a green dot would vanish on the green sidebar
+        # Badges, not coloured dots: a badge carries its own background, so it stays readable on any sidebar colour
         if api_is_up():
             st.markdown(":primary-badge[:material/check_circle: API connected]")
         else:

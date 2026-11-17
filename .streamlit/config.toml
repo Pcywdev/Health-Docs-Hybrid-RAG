@@ -1,5 +1,5 @@
 # Streamlit reads this from the directory you launch from: run from the repo root.
-# Palette: white page, near-black text, green accent, forest-green sidebar.
+# Palette: white page, near-black text, green accent, light olive sidebar.
 # What the theme can't express (shadows, chat alignment) is in frontend/style.css.
 
 [theme]
@@ -20,11 +20,13 @@ headingFont = "Space Grotesk:https://fonts.googleapis.com/css2?family=Space+Grot
 headingFontWeights = [700, 700, 600]
 
 [theme.sidebar]
-backgroundColor = "#14532D"           # forest green
-secondaryBackgroundColor = "#166534"
-textColor = "#F0FDF4"
-primaryColor = "#BBF7D0"              # mint: visible on the dark green
-borderColor = "#2F7A4A"
+# Light olive, a browner and more muted green than the page accent; reads as
+# a tinted, see-through panel next to the white page.
+backgroundColor = "#E4E5D3"
+secondaryBackgroundColor = "#D3D5B8"   # selected page, expander headers
+textColor = "#2B2F1E"                  # dark olive-brown
+primaryColor = "#556B2F"               # olive: badges, slider, focus
+borderColor = "#C8CAAE"
 
 [client]
 toolbarMode = "minimal"
