@@ -22,6 +22,10 @@ class Settings(BaseSettings):
     # Hybrid retrieval
     candidate_k: int = 20
     rerank_model: str = "rerank-v3.5"
+    # Source diversity: swap in the best chunk of a document the top k missed,
+    # if its rerank score clears the floor (q035: WHO gold chunk ranked 7th at 0.32)
+    source_diversity: bool = True
+    diversity_min_score: float = 0.3
 
     # Evaluation (eval/run_eval.py)
     eval_judge_model: str = "gpt-4o-mini"
