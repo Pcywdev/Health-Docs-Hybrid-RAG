@@ -3,17 +3,17 @@
    created with key="NAME"; the one data-testid selector is marked below.
    Never write a less-than sign in this file, even in a comment: st.html
    sanitises with DOMPurify, which drops the whole style tag if its text looks
-   like it contains an HTML tag. */
+   like it contains an HTML tag.
+   Leave text margins and heading padding to Streamlit: its markdown blocks
+   offset them with negative margins, so zeroing them clips or overlaps text. */
 
 /* Page header: eyebrow, title, caption, anchored by a rule */
 .st-key-hero {
   border-bottom: 2px solid #0B0F0C;
-  padding-bottom: 0.75rem;
-  margin-bottom: 0.5rem;
-  gap: 0.25rem;
+  padding-bottom: 0.5rem;
+  margin-bottom: 0.75rem;
 }
 .st-key-hero h1 {
-  padding: 0;
   letter-spacing: -0.02em;
 }
 .st-key-eyebrow p {
@@ -22,7 +22,6 @@
   font-weight: 600;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  margin: 0;
 }
 
 /* The user's question: outlined card with a hard green offset shadow */
@@ -31,18 +30,17 @@
   border-radius: 8px;
   background: #F3F6F4;
   box-shadow: 4px 4px 0 #15803D;
-  padding: 0.65rem 0.9rem;
+  padding: 0.75rem 1rem;
   width: fit-content;
   max-width: 100%;
   margin-left: auto; /* sit on the right, next to the avatar */
-}
-[class*="st-key-user_q_"] p {
-  margin: 0;
+  margin-right: 4px; /* room for the shadow */
 }
 
-/* Questions on the right, answers on the left.
+/* Questions on the right, answers on the left: the row holding a question
+   card is reversed, so its avatar moves to the right edge.
    data-testid selectors can change between Streamlit releases: re-check after upgrades. */
-[data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarUser"]) {
+[data-testid="stChatMessage"]:has([class*="st-key-user_q_"]) {
   flex-direction: row-reverse;
   background: transparent;
 }
@@ -58,4 +56,9 @@
 .st-key-examples button:hover {
   border-color: #15803D;
   color: #15803D;
+}
+
+/* Sidebar: a hairline edge so the light olive panel separates from the page */
+[data-testid="stSidebar"] {
+  border-right: 1px solid #D8D5C2;
 }
