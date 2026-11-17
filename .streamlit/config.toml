@@ -1,0 +1,33 @@
+# Streamlit reads this from the directory you launch from: run from the repo root.
+# Palette: white page, near-black text, green accent, forest-green sidebar.
+# What the theme can't express (shadows, chat alignment) is in frontend/style.css.
+
+[theme]
+base = "light"
+primaryColor = "#15803D"             # green-700: 5:1 on white, passes WCAG AA
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F3F6F4" # faint green-grey panels
+textColor = "#0B0F0C"                # near-black
+linkColor = "#15803D"
+borderColor = "#C9D3CC"
+showWidgetBorder = true
+baseRadius = "0.375rem"
+dataframeHeaderBackgroundColor = "#F3F6F4"
+
+# Google Fonts (an external request); falls back to the system sans-serif offline
+font = "Inter:https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap, sans-serif"
+headingFont = "Space Grotesk:https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&display=swap, sans-serif"
+headingFontWeights = [700, 700, 600]
+
+[theme.sidebar]
+backgroundColor = "#14532D"           # forest green
+secondaryBackgroundColor = "#166534"
+textColor = "#F0FDF4"
+primaryColor = "#BBF7D0"              # mint: visible on the dark green
+borderColor = "#2F7A4A"
+
+[client]
+toolbarMode = "minimal"
+
+[browser]
+gatherUsageStats = false
