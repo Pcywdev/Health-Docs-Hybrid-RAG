@@ -98,3 +98,6 @@ CI runs lint, a migration round trip on Postgres 17, the tests and both Docker b
 - [docs/architecture.md](docs/architecture.md): system design, data flow, schema, key decisions
 - [docs/ROADMAP.md](docs/ROADMAP.md): progress and what's next
 - [docs/record_notes.md](docs/record_notes.md): the concepts behind each stage
+
+## License
+MIT, see [LICENSE](LICENSE). The source PDFs are published by WHO and the US Department of Health and Human Services and are not covered by this license.
