@@ -1,13 +1,13 @@
 # Roadmap
 
 Where the project stands. Update after each milestone (see CLAUDE.md, Documentation).
-Last updated: 2026-11-17 · branch `feat/streamlit-frontend` · Alembic head `a9d742709640`
+Last updated: 2026-11-18 · branch `fix/ui-styling` · Alembic head `a9d742709640`
 
 Legend: [x] finished · [~] in progress · [ ] not started
 
 ## Now / Next up
-- **Now:** Step 12, Streamlit frontend (`feat/streamlit-frontend`): built, offline tests pass; awaiting PR
-- **Next up:** Celery + Redis
+- **Now:** UI styling fixes + README screenshots (`fix/ui-styling`): awaiting PR
+- **Next up:** Step 13, Celery + Redis
 - **Then:** frontend follow-ups (streaming answers, answer feedback)
 
 ## Done
@@ -27,7 +27,7 @@ Legend: [x] finished · [~] in progress · [ ] not started
 - [x] Step 9, eval: runner (custom metrics + RAGAS, threshold gate), 40-question gold set v1.3, baseline × 3, thresholds set · PR #8
 - [x] Step 10, Docker + CI: GitHub Actions (ruff, migration round trip on Postgres 17, pytest, `docker build`), non-root `Dockerfile`, `docker-compose.yml` (API + own Postgres on 127.0.0.1:5433) · PR #9
 - [x] Step 11, eval fixes: (1) citation ranges · PR #10, (2) prompt v1.2 for superseded guidance (q027) · PR #11, (3) source diversity after rerank + `source_coverage` metric, eval run 10 · PR #12
-- [x] Step 12, Streamlit frontend: Ask page (citation badges, source cards, citation summary, examples, sidebar), History dashboard, `Dockerfile.frontend` + compose `ui` service on 127.0.0.1:8501, README · branch `feat/streamlit-frontend`
+- [x] Step 12, Streamlit frontend: Ask page (citation badges, source cards, citation summary, examples, sidebar), History dashboard, `Dockerfile.frontend` + compose `ui` service on 127.0.0.1:8501, README · PR #13
 
 ## Remaining (in order)
 - [ ] **Step 13, Celery + Redis**
