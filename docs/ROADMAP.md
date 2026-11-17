@@ -1,14 +1,14 @@
 # Roadmap
 
 Where the project stands. Update after each milestone (see CLAUDE.md, Documentation).
-Last updated: 2026-11-17 · branch `feat/source-diversity` · Alembic head `a9d742709640`
+Last updated: 2026-11-17 · branch `feat/streamlit-frontend` · Alembic head `a9d742709640`
 
 Legend: [x] finished · [~] in progress · [ ] not started
 
 ## Now / Next up
-- **Now:** [~] Step 11, fix 3 of 3: source diversity (`feat/source-diversity`), eval run 10 passed; awaiting PR
-- **Next up:** Streamlit frontend
-- **Then:** Celery + Redis
+- **Now:** Step 12, Streamlit frontend (`feat/streamlit-frontend`): built, offline tests pass; awaiting PR
+- **Next up:** Celery + Redis
+- **Then:** frontend follow-ups (streaming answers, answer feedback)
 
 ## Done
 - [x] Ingestion: PDFs → chunks → embeddings → Chroma (843 chunks, 2 documents) · tag `phase-1-complete`
@@ -26,11 +26,12 @@ Legend: [x] finished · [~] in progress · [ ] not started
 - [x] Step 8, offline unit tests (RRF, citations, stats, Cohere fallback, `/query` resilience) · PR #7
 - [x] Step 9, eval: runner (custom metrics + RAGAS, threshold gate), 40-question gold set v1.3, baseline × 3, thresholds set · PR #8
 - [x] Step 10, Docker + CI: GitHub Actions (ruff, migration round trip on Postgres 17, pytest, `docker build`), non-root `Dockerfile`, `docker-compose.yml` (API + own Postgres on 127.0.0.1:5433) · PR #9
+- [x] Step 11, eval fixes: (1) citation ranges · PR #10, (2) prompt v1.2 for superseded guidance (q027) · PR #11, (3) source diversity after rerank + `source_coverage` metric, eval run 10 · PR #12
+- [x] Step 12, Streamlit frontend: Ask page (citation badges, source cards, citation summary, examples, sidebar), History dashboard, `Dockerfile.frontend` + compose `ui` service on 127.0.0.1:8501, README · branch `feat/streamlit-frontend`
 
 ## Remaining (in order)
-- [~] **Step 11, eval fixes** — (1) citation ranges · PR #10, (2) prompt v1.2 for superseded guidance (q027) · PR #11, (3) source diversity after rerank + `source_coverage` metric (branch `feat/source-diversity`)
-- [ ] **Step 12, Streamlit frontend**
-- [ ] **Later** — Celery + Redis
+- [ ] **Step 13, Celery + Redis**
+- [ ] **Later** — frontend follow-ups: streaming answers, answer feedback (needs a route and a table), multi-turn query rewriting (a retrieval change, must pass the eval), an eval-runs page
 
 ## Open issues
 - q033 (both documents already retrieved) still scores faithfulness 0.33–0.50; not a diversity problem, cause not yet diagnosed.
@@ -38,6 +39,7 @@ Legend: [x] finished · [~] in progress · [ ] not started
 - `answer_relevancy` scores correct, concise answers as low as 0.56, so it is measured but not gated (`null`).
 - CI cannot run the eval (PDFs and Chroma are not in git; needs paid keys). Run it locally and paste scores in the PR.
 - `/history` and `/ingest` have no authentication.
+- The UI's right-aligned question cards rely on a Streamlit `data-testid` selector in `frontend/style.css`; re-check after Streamlit upgrades.
 - BM25 cache is keyed on chunk count; `load_prompt()` is cached: restart after re-ingesting or editing the prompt.
 - `temperature=0` is not deterministic, but only the RAGAS judge scores varied across baseline runs (±0.01); retrieval and citation metrics were identical.
 

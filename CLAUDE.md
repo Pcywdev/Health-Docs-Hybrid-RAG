@@ -8,23 +8,25 @@
 - Generation: OpenAI `gpt-4o-mini`, temperature 0
 - Database: PostgreSQL 17 (native Windows service) + SQLAlchemy 2.0 + Alembic
 - Eval: RAGAS + custom metrics
-- Containers and CI: Docker Compose (API + its own Postgres 17), GitHub Actions
-- Planned, not built yet: Celery + Redis, Streamlit
+- Frontend: Streamlit (`frontend/`), a thin HTTP client of the API
+- Containers and CI: Docker Compose (UI + API + its own Postgres 17), GitHub Actions
+- Planned, not built yet: Celery + Redis
 
 ## Environment
 - Always use the `askdocs` conda env. The default `python` and the old `openaitest` env have the wrong packages.
 - Before any `pip install`, check: `python -c "import sys; print(sys.prefix)"` must end in `envs\askdocs`.
-- Install: `pip install -r requirements-dev.txt`. Runtime deps live in `requirements.txt`; never paste a `pip freeze` into it.
+- Install: `pip install -r requirements-dev.txt`. Runtime deps live in `requirements.txt` (API) and `requirements-frontend.txt` (UI); never paste a `pip freeze` into them.
 - `langchain-community` is pinned `<0.4` on purpose: every ragas release up to 0.4.3 imports a module removed in 0.4.
 
 ## Commands
 - Dev server: `uvicorn app.main:app --reload` (API docs at http://127.0.0.1:8000/docs)
+- UI: `streamlit run frontend/Home.py` from the repo root (http://localhost:8501; needs the API running)
 - Ingest PDFs: `python -m app.ingest` (calls OpenAI embeddings, costs money)
 - Run tests: `pytest`
 - Run eval: `python eval/run_eval.py`
 - Lint: `ruff check .`
 - Migrations: `alembic upgrade head` · new migration: `alembic revision --autogenerate -m "..."` · verify: `alembic check`
-- Docker: `docker compose up --build` (API on 127.0.0.1:8000, its own Postgres on 127.0.0.1:5433; `docker compose down` to stop)
+- Docker: `docker compose up --build` (UI on 127.0.0.1:8501, API on 127.0.0.1:8000, its own Postgres on 127.0.0.1:5433; `docker compose down` to stop)
 
 ## Architecture
 Full design, data flow and schema: `docs/architecture.md`.
@@ -34,6 +36,7 @@ Full design, data flow and schema: `docs/architecture.md`.
 - `app/generator.py` — `[Source N]` context, `generate_answer`, `validate_citation`
 - `app/db.py` — ORM models (`query_logs`, `eval_runs`, `eval_results`), `log_query`, `/history` readers
 - `app/main.py` — routes: `/health`, `/query`, `/ingest`, `/history`
+- `frontend/` — Streamlit UI: `Home.py` (Ask), `pages/1_History.py`, `api_client.py` (HTTP only, never imports `app/`), `formatting.py`, `theme.py` + `style.css`; theme in `.streamlit/config.toml`
 - `alembic/` — migrations; `env.py` reads the database URL from settings
 - `prompts/` — versioned prompt templates in YAML
 - `eval/` — evaluation set + eval runner
@@ -66,6 +69,8 @@ Full design, data flow and schema: `docs/architecture.md`.
 - The BM25 index cache is keyed on chunk count and `load_prompt()` is cached: restart the server after re-ingesting or editing the prompt.
 - Re-ingesting with new chunk settings leaves old chunk ids in Chroma; delete the collection first.
 - Postgres `avg()` returns `Decimal` and `sum()` over no rows returns NULL: convert in Python.
+- Never write `<` in `frontend/style.css`, even in a comment: `st.html` (DOMPurify) silently drops the whole style tag.
+- `frontend/` modules import each other directly (`import api_client`); `pytest.ini` and `ruff.toml` add `frontend` to the path.
 
 ## Documentation
 - `docs/architecture.md` — system design, data flow, schema, key decisions. Read before changing the pipeline, schema or routes.

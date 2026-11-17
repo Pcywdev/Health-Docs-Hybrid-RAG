@@ -116,5 +116,21 @@ Each fix follows the same loop: find the failure in the eval, diagnose the cause
   - Rerank scores are query-relative, so an absolute floor is crude: the swap also fired on 9 single-document questions. That was harmless here, but it's a tuning target.
   - q033 had both documents already, so it wasn't a diversity problem. Diagnosing first stopped me claiming it as a win.
 
+## 11. Streamlit frontend (Step 12)
+Goal: a UI a reviewer can use in a minute, which shows *why* to trust an answer (citations, sources, quality numbers) rather than just the answer.
+- **What a RAG UI needs:** a question box with example questions (a blank box stalls people), a progress indicator, the answer with inline citation markers, the cited passages one click away, a visible quality signal, and distinct refusal and error states. Markers and the source panel do different jobs: markers map claims to sources, the panel is where you read them.
+- **Thin client:** the UI calls the API over HTTP and never imports `app/`. Logging, validation and error mapping stay in one place, and the UI image needs no keys.
+- **Streamlit's rerun model:** every click or input reruns the whole script top to bottom. Anything that must survive a rerun goes in `st.session_state` (a per-browser-tab dict). The chat is a list there, redrawn on each run.
+- **Callbacks:** `on_click` runs *before* the rerun, so a button can queue a question in session state and the next run answers it like a typed one: one code path for both.
+- **Widget keys:** a `key` makes a widget's value readable from `st.session_state` (the `top_k` slider), and gives containers a stable CSS class `st-key-NAME`.
+- **Honest wording:** the summary says citations "point to a retrieved passage", not "verified", because `validate_citation` only checks the number is in range.
+- **Mirrored, not shared:** the badge parser copies the backend's citation rules (ranges, en dash, `MAX_RANGE`) so the badges match what the API counted, without importing the backend.
+- **Styling in two layers:** the theme in `.streamlit/config.toml` (colours, fonts, borders, a separate sidebar palette) is supported config and survives upgrades. CSS in `style.css` covers the rest (question cards with an offset shadow, right-aligned questions), but selectors on Streamlit internals (`data-testid`) can break on upgrades.
+- **Gotcha, DOMPurify:** `st.html` sanitises its content, and a `<style>` whose text contains something tag-like (even `<key>` in a comment) is silently deleted. A test now checks `style.css` has no `<`.
+- **Testing a UI offline:**
+  - `httpx.MockTransport` answers requests with a function, so the client's error mapping (422/502/503, connection refused, timeout) is tested without a server.
+  - Streamlit's `AppTest` runs a page headlessly; you set inputs, click buttons and read the rendered elements, with `api_client` monkeypatched.
+- **Docker:** a second, small image (`Dockerfile.frontend`) with only Streamlit and `httpx`. In compose, it reaches the API by its service name (`API_URL=http://api:8000`).
+
 ## Still to come
-Streamlit frontend → Celery/Redis.
+Celery/Redis → frontend follow-ups (streaming, answer feedback, multi-turn).
