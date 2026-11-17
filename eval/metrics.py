@@ -43,6 +43,20 @@ def page_recall(chunks: list[dict[str, Any]], gold: set[Page]) -> float:
     return len(gold & set(_pages(chunks))) / len(gold)
 
 
+def source_coverage(chunks: list[dict[str, Any]], question: dict[str, Any]) -> float | None:
+    """Share of the question's gold sources that at least one retrieved chunk comes from.
+
+    Only meaningful for questions that need several documents, so it returns
+    ``None`` when the gold lists fewer than 2 sources; ``None`` keeps those
+    questions out of the run's mean.
+    """
+    gold_sources = {g["source"] for g in question["gold"]}
+    if len(gold_sources) < 2:
+        return None
+    retrieved_sources = {c["source"] for c in chunks}
+    return len(gold_sources & retrieved_sources) / len(gold_sources)
+
+
 def cited_gold(sources: list[dict[str, Any]], gold: set[Page]) -> bool:
     """True if the answer cites at least one chunk on a gold page."""
     return hit_at_k(sources, gold)
@@ -89,6 +103,10 @@ def summarize(rows: list[dict[str, Any]]) -> dict[str, Any]:
         "hit@k": _mean([float(r["hit"]) for r in answerable]),
         "mrr": _mean([r["mrr"] for r in answerable]),
         "page_recall@k": _mean([r["page_recall"] for r in answerable]),
+        # Only questions with 2+ gold sources have a value; the rest are None
+        "source_coverage": _mean(
+            [r["source_coverage"] for r in answerable if r.get("source_coverage") is not None]
+        ),
         "cited_gold": _mean([float(r["cited_gold"]) for r in answerable]),
         # Refusals score 0.0 by design, so only answers that cited something count
         "citation_accuracy": _mean([r["citation_accuracy"] for r in cited]),
