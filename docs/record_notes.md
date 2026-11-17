@@ -1,7 +1,7 @@
 # Record notes
 
 Personal study notes: what each finished stage does and the concepts behind it.
-Status lives in `ROADMAP.md`, design in `architecture.md`. Last updated: 2026-11-16
+Status lives in `ROADMAP.md`, design in `architecture.md`. Last updated: 2026-11-17
 
 **RAG** = retrieve relevant text from your own documents first, then make the LLM answer only from it. Less hallucination, verifiable answers.
 
@@ -103,5 +103,18 @@ Each fix follows the same loop: find the failure in the eval, diagnose the cause
   - A small dip (q008 1.0 → 0.71) can be the judge reacting to new wording. Check the cited numbers against the source before calling it a hallucination.
   - LLMs copy phrases from instructions into their output, so avoid wording that sounds like a heading.
 
+**Fix 3: cross-document retrieval (q035)** · `source_diversity`
+- **Symptom:** "How do WHO and the US differ on ...?" was refused. All 5 retrieved chunks came from the US PDF, so the model had no WHO text to compare.
+- **Diagnose before fixing:** rerank the *whole* candidate pool and print each chunk's source, page and score. The WHO gold chunk was in the pool at rank 7 (score 0.32), so ranking was the problem, not recall. Had it been missing from the pool, the fix would have been a bigger `candidate_k` or one search per document instead.
+- **Result diversification:** after reranking, if a document is missing from the top k, swap in its best chunk in place of the lowest-ranked chunk of the most-represented document. Three guards: a relevance floor (`diversity_min_score`), the swapped-in chunk goes *last* so the top ranks (and MRR) are untouched, and a document's only chunk is never dropped.
+- **Free change:** Cohere bills per search, not per document, so reranking all ~35 candidates instead of 5 costs the same.
+- **Measure the problem directly:** new metric `source_coverage` = share of a question's gold documents found in the top k, only for questions with 2+ gold documents (`None` otherwise, kept out of the mean).
+- **Before/after with one flag:** pydantic-settings reads environment variables before `.env`, so `SOURCE_DIVERSITY=false` gives a "before" run on the same commit.
+- **Result:** source_coverage 0.90 → 1.00, false refusals 1/32 → 0/32, q035 answered from both documents, MRR unchanged (0.768).
+- **Reading a drop correctly:** context_precision fell 0.972 → 0.943 only because q035 is now answered and scored (0.2) instead of skipped as a refusal: (0.972 × 31 + 0.2) / 32 ≈ 0.948. Check *which* questions moved before you blame the change.
+- **Gotchas:**
+  - Rerank scores are query-relative, so an absolute floor is crude: the swap also fired on 9 single-document questions. That was harmless here, but it's a tuning target.
+  - q033 had both documents already, so it wasn't a diversity problem. Diagnosing first stopped me claiming it as a win.
+
 ## Still to come
-Fix 3: cross-document retrieval (source diversity) → Celery/Redis, Streamlit.
+Streamlit frontend → Celery/Redis.

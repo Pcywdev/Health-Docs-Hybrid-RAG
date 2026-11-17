@@ -22,7 +22,7 @@ A FastAPI service that answers questions about exercise science and public healt
 ## Codemap
 - `app/config.py` — the one `settings` object; every other module imports it.
 - `app/ingest.py` — `load_pdfs` → `chunk_documents` → `embed_texts` → `store_chunks`; `ingest()` runs all four. Also creates the shared OpenAI and Chroma clients.
-- `app/retriever.py` — `vector_search`, `bm25_search`, `reciprocal_rank_fusion`, `rerank`; `retrieve()` runs them in order.
+- `app/retriever.py` — `vector_search`, `bm25_search`, `reciprocal_rank_fusion`, `rerank`, `ensure_source_diversity`; `retrieve()` runs them in order.
 - `app/generator.py` — `build_context`, `generate_answer`, `validate_citation`, `extract_cited_sources`, `load_prompt`.
 - `app/db.py` — models `QueryLog`, `EvalRun`, `EvalResult`; `log_query`; the `/history` readers `citation_stats`, `recent_queries`, `fabricated_queries`.
 - `app/main.py` — routes `/health`, `/query`, `/ingest`, `/history`, plus the request and response models.
@@ -52,7 +52,7 @@ sequenceDiagram
   API->>R: question, top_k
   R->>R: vector search + BM25 (20 candidates each)
   R->>R: reciprocal rank fusion (k=60)
-  R->>R: Cohere rerank to top_k (RRF order if Cohere fails)
+  R->>R: Cohere rerank of the whole pool, cut to top_k with source diversity (RRF order if Cohere fails)
   R-->>API: chunks
   API->>G: question, chunks
   G->>G: label chunks [Source N], call LLM, parse citations
@@ -152,6 +152,7 @@ erDiagram
 | `JsonType` (JSONB on Postgres, JSON on SQLite) | Offline tests run on SQLite |
 | Gold labels at page level, not chunk id | Chunk ids change when chunking settings change |
 | Pin `langchain-community<0.4` | ragas imports a module removed in 0.4 |
+| Source diversity after rerank (`source_diversity`, floor `diversity_min_score=0.3`) | Comparison questions could get top-k chunks from one PDF only (q035). The best chunk of a missing document is swapped in at the end if it clears the floor, so single-document questions and the top ranks are unaffected |
 | Fail an eval run that used the RRF fallback | Cohere rate limits would otherwise silently lower scores |
 
 ## Running it

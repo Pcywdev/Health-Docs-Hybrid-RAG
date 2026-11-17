@@ -8,6 +8,7 @@ from eval.metrics import (
     is_refusal,
     mrr,
     page_recall,
+    source_coverage,
     summarize,
 )
 
@@ -39,6 +40,26 @@ def test_page_recall_counts_distinct_gold_pages() -> None:
     chunks = [chunk("who.pdf", 11), chunk("who.pdf", 11), chunk("who.pdf", 4)]
     assert page_recall(chunks, GOLD) == 0.5
     assert page_recall(chunks, set()) == 0.0
+
+
+# --- source_coverage -------------------------------------------------------
+
+TWO_SOURCES = {"gold": [{"source": "who.pdf", "pages": [11]}, {"source": "pag.pdf", "pages": [56]}]}
+
+
+def test_source_coverage_both_sources_retrieved() -> None:
+    chunks = [chunk("pag.pdf", 3), chunk("who.pdf", 40)]  # pages don't matter, only sources
+    assert source_coverage(chunks, TWO_SOURCES) == 1.0
+
+
+def test_source_coverage_one_source_missing() -> None:
+    chunks = [chunk("pag.pdf", 56), chunk("pag.pdf", 8)]
+    assert source_coverage(chunks, TWO_SOURCES) == 0.5
+
+
+def test_source_coverage_is_none_for_single_source_questions() -> None:
+    question = {"gold": [{"source": "who.pdf", "pages": [11, 12]}]}
+    assert source_coverage([chunk("who.pdf", 11)], question) is None
 
 
 def test_cited_gold_checks_cited_sources_only() -> None:
@@ -97,6 +118,11 @@ def test_summarize_splits_answerable_and_unanswerable() -> None:
     assert s["citation_accuracy"] == 1.0
     # None = not scored, so it is not averaged in as zero
     assert s["faithfulness"] == pytest.approx(0.7)
+
+
+def test_summarize_source_coverage_skips_single_source_questions() -> None:
+    rows = [row(source_coverage=0.5), row(source_coverage=1.0), row(source_coverage=None), row()]
+    assert summarize(rows)["source_coverage"] == pytest.approx(0.75)
 
 
 def test_summarize_excludes_errors_and_counts_fallbacks() -> None:

@@ -1,14 +1,14 @@
 # Roadmap
 
 Where the project stands. Update after each milestone (see CLAUDE.md, Documentation).
-Last updated: 2026-11-16 · branch `fix/prompt-superseded-guidance` · Alembic head `a9d742709640`
+Last updated: 2026-11-17 · branch `feat/source-diversity` · Alembic head `a9d742709640`
 
 Legend: [x] finished · [~] in progress · [ ] not started
 
 ## Now / Next up
-- **Now:** [~] Step 11, fix the eval findings. Fix 2 of 3: prompt v1.2 for superseded guidance (`fix/prompt-superseded-guidance`), eval run 8 passed; awaiting PR
-- **Next up:** fix 3, cross-document retrieval (source diversity)
-- **Then:** Celery + Redis, Streamlit frontend
+- **Now:** [~] Step 11, fix 3 of 3: source diversity (`feat/source-diversity`), eval run 10 passed; awaiting PR
+- **Next up:** Streamlit frontend
+- **Then:** Celery + Redis
 
 ## Done
 - [x] Ingestion: PDFs → chunks → embeddings → Chroma (843 chunks, 2 documents) · tag `phase-1-complete`
@@ -28,11 +28,13 @@ Legend: [x] finished · [~] in progress · [ ] not started
 - [x] Step 10, Docker + CI: GitHub Actions (ruff, migration round trip on Postgres 17, pytest, `docker build`), non-root `Dockerfile`, `docker-compose.yml` (API + own Postgres on 127.0.0.1:5433) · PR #9
 
 ## Remaining (in order)
-- [~] **Step 11, eval fixes** — (1) citation ranges · PR #10, (2) prompt v1.2 for superseded guidance (q027), (3) source diversity in retrieval; each with a before/after eval
-- [ ] **Later** — Celery + Redis, Streamlit frontend
+- [~] **Step 11, eval fixes** — (1) citation ranges · PR #10, (2) prompt v1.2 for superseded guidance (q027) · PR #11, (3) source diversity after rerank + `source_coverage` metric (branch `feat/source-diversity`)
+- [ ] **Step 12, Streamlit frontend**
+- [ ] **Later** — Celery + Redis
 
 ## Open issues
-- Comparison questions that need both documents can retrieve only one (q035 false refusal, q033 faithfulness 0.50): nothing in retrieval guarantees both sources are represented.
+- q033 (both documents already retrieved) still scores faithfulness 0.33–0.50; not a diversity problem, cause not yet diagnosed.
+- The diversity floor (0.3) is absolute, but rerank scores are query-relative, so the swap also fires on 9 of 30 single-document questions. No metric dropped, but it costs those questions their 5th slot. A relative floor (share of the top score) is the likely refinement.
 - `answer_relevancy` scores correct, concise answers as low as 0.56, so it is measured but not gated (`null`).
 - CI cannot run the eval (PDFs and Chroma are not in git; needs paid keys). Run it locally and paste scores in the PR.
 - `/history` and `/ingest` have no authentication.

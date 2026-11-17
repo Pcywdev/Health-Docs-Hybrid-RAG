@@ -42,6 +42,7 @@ from eval.metrics import (
     is_refusal,
     mrr,
     page_recall,
+    source_coverage,
     summarize,
 )
 
@@ -78,6 +79,8 @@ def run_config(top_k: int, use_ragas: bool, set_version: str) -> dict[str, Any]:
         "embedding_model": settings.embedding_model,
         "llm_model": settings.llm_model,
         "rerank_model": settings.rerank_model,
+        "source_diversity": settings.source_diversity,
+        "diversity_min_score": settings.diversity_min_score,
         "prompt_version": load_prompt()["version"],
         "ragas": use_ragas,
         "judge_model": settings.eval_judge_model if use_ragas else None,
@@ -122,6 +125,7 @@ def run_question(question: dict[str, Any], top_k: int) -> dict[str, Any]:
             hit=hit_at_k(chunks, gold),
             mrr=mrr(chunks, gold),
             page_recall=page_recall(chunks, gold),
+            source_coverage=source_coverage(chunks, question),
             cited_gold=cited_gold(result["sources"], gold),
         )
     return row
@@ -193,7 +197,7 @@ def to_db_result(row: dict[str, Any]) -> dict[str, Any]:
     chunks = row.get("chunks", [])
     extra = {
         key: row[key]
-        for key in ("mrr", "page_recall", "cited_gold", "refused", "has_citation",
+        for key in ("mrr", "page_recall", "source_coverage", "cited_gold", "refused", "has_citation",
                     "retrieved_pages", "ragas_errors")
         if key in row
     }

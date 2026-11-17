@@ -2,6 +2,7 @@
 
 import logging
 import re
+from collections import Counter
 from functools import lru_cache
 from typing import Any
 
@@ -189,13 +190,50 @@ def rerank(
     ]
 
 
+def ensure_source_diversity(
+    ranked: list[dict[str, Any]], k: int, min_score: float
+) -> list[dict[str, Any]]:
+    """Cut ``ranked`` to ``k`` chunks, making room for sources the top ``k`` missed.
+
+    ``ranked`` is the whole reranked pool, best first. For each source that is
+    in the pool but not in the top ``k``, its best chunk is swapped in when its
+    ``rerank_score`` is at least ``min_score``. It replaces the lowest-ranked
+    chunk of the source with the most chunks, and is appended at the end so the
+    order of the top results (and MRR) is unchanged. A source's only chunk is
+    never dropped. Returns at most ``k`` chunks; unchanged if nothing qualifies.
+    """
+    # top: list[dict], length <= k. Slicing copies, so `ranked` is never modified.
+    top = ranked[:k]
+    # set difference: sources in the pool that are absent from the top k
+    missing = {c["source"] for c in ranked} - {c["source"] for c in top}
+
+    # sorted() so the swap order is deterministic when several sources are missing
+    for source in sorted(missing):
+        # ranked is best first, so the first chunk from this source is its best one
+        best = next(c for c in ranked if c["source"] == source)
+        # .get: chunks from the RRF fallback carry no rerank_score
+        if best.get("rerank_score", 0.0) < min_score:
+            continue
+
+        # Counter({"US.pdf": 5}) -> most_common(1) = [("US.pdf", 5)]
+        donor, count = Counter(c["source"] for c in top).most_common(1)[0]
+        if count < 2:
+            break  # every source has one chunk left; taking one would just move the gap
+        drop = max(i for i, c in enumerate(top) if c["source"] == donor)
+        top.pop(drop)
+        top.append(best)
+    return top
+
+
 # Hybrid retrieval: Entry point caller uses
 def retrieve(query: str, k: int = 5) -> list[dict[str, Any]]:
     """Return the ``k`` chunks most relevant to ``query`` via hybrid retrieval.
 
     Runs four stages: vector search and BM25 keyword search over a wide
     candidate pool (``settings.candidate_k`` each), a reciprocal rank fusion
-    merge, then a Cohere rerank that cuts the pool to the best ``k``.
+    merge, then a Cohere rerank that cuts the pool to the best ``k``. With
+    ``settings.source_diversity`` on, the whole pool is reranked and
+    ``ensure_source_diversity`` makes room for a document the top ``k`` missed.
 
     Each chunk is a dict with ``id``, ``text``, ``source``, ``page``,
     ``rrf_score``, ``found_in`` and ``rerank_score`` (0-1, higher = more
@@ -215,7 +253,12 @@ def retrieve(query: str, k: int = 5) -> list[dict[str, Any]]:
     )
 
     try:
-        return rerank(query, fused, top_n=k)
+        if not settings.source_diversity:
+            return rerank(query, fused, top_n=k)
+        # Rerank the whole pool (one billed search either way) so chunks below
+        # the top k are available for the diversity swap
+        ranked = rerank(query, fused, top_n=len(fused))
+        return ensure_source_diversity(ranked, k, settings.diversity_min_score)
     except ApiError:
         # Degrade to the merge order rather than failing the whole query
         logger.warning(
